@@ -1,0 +1,41 @@
+name: node-modules-doctor
+description: Analyze Node.js dependency health, risk, and remediation plans in CI.
+author: node-modules-doctor
+inputs:
+  command:
+    description: CLI command to run.
+    required: false
+    default: doctor
+  min-score:
+    description: Minimum health score required to pass.
+    required: false
+    default: '70'
+  fail-on:
+    description: Finding severity that should fail CI.
+    required: false
+    default: high
+  report:
+    description: Markdown report output path.
+    required: false
+    default: dependency-report.md
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        cat > node-modules-doctor.config.mjs <<'CONFIG'
+        export default {
+          ci: {
+            minScore: Number(process.env.NODE_MODULES_DOCTOR_MIN_SCORE || 70),
+            failOn: process.env.NODE_MODULES_DOCTOR_FAIL_ON || 'high'
+          }
+        };
+        CONFIG
+      env:
+        NODE_MODULES_DOCTOR_MIN_SCORE: ${{ inputs.min-score }}
+        NODE_MODULES_DOCTOR_FAIL_ON: ${{ inputs.fail-on }}
+    - shell: bash
+      run: npx node-modules-doctor ${{ inputs.command }} --ci --markdown --output "${{ inputs.report }}"
+branding:
+  icon: activity
+  color: green
