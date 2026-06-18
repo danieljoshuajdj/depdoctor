@@ -11,7 +11,7 @@ const icon = {
 
 export function renderTerminal(result: AnalysisResult, options: ReporterOptions = {}): string {
   const lines: string[] = [];
-  lines.push(chalk.bold('\npkgdoctor'));
+  lines.push(chalk.bold('\npkg-ct'));
   lines.push(
     `${scoreBadge(result.score.overall)} ${chalk.bold(`Project Health Score: ${result.score.overall}/100 (${result.score.grade})`)}`
   );

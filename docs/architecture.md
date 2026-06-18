@@ -1,6 +1,6 @@
 # Architecture
 
-`pkgdoctor` is split into small engines:
+`pkg-ct` is split into small engines:
 
 - `scanner`: project, workspace, package manager, lockfile, and metadata discovery
 - `scanner/source-usage`: static import usage analysis for unused direct dependencies

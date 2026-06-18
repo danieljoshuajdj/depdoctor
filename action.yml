@@ -1,6 +1,6 @@
-name: pkgdoctor
+name: pkg-ct
 description: Analyze Node.js dependency health, risk, and remediation plans in CI.
-author: pkgdoctor
+author: pkg-ct
 inputs:
   command:
     description: CLI command to run.
@@ -23,7 +23,7 @@ runs:
   steps:
     - shell: bash
       run: |
-        cat > pkgdoctor.config.mjs <<'CONFIG'
+        cat > pkg-ct.config.mjs <<'CONFIG'
         export default {
           ci: {
             minScore: Number(process.env.PKGDOCTOR_MIN_SCORE || 70),
@@ -35,7 +35,7 @@ runs:
         PKGDOCTOR_MIN_SCORE: ${{ inputs.min-score }}
         PKGDOCTOR_FAIL_ON: ${{ inputs.fail-on }}
     - shell: bash
-      run: npx pkgdoctor ${{ inputs.command }} --ci --markdown --output "${{ inputs.report }}"
+      run: npx pkg-ct ${{ inputs.command }} --ci --markdown --output "${{ inputs.report }}"
 branding:
   icon: activity
   color: green

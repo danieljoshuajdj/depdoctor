@@ -1,12 +1,13 @@
 {
-  "name": "pkgdoctor",
+  "name": "pkg-ct",
   "version": "0.2.0",
   "description": "The AI-powered dependency intelligence and maintenance layer for Node.js projects.",
   "type": "module",
   "bin": {
-    "pkgdoctor": "./dist/cli/index.js",
-    "node-modules-doctor": "./dist/cli/index.js", 
-    "nmd": "./dist/cli/index.js"
+    "pkg-ct": "dist/cli/index.js",
+    "pkg-caretaker": "dist/cli/index.js",
+    "node-modules-doctor": "dist/cli/index.js",
+    "nmd": "dist/cli/index.js"
   },
   "exports": {
     ".": {
@@ -81,6 +82,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/pkgdoctor.git"
+    "url": "git+https://github.com/danieljoshuajdj/pkg-ct.git"
   }
 }
