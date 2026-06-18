@@ -28,13 +28,6 @@ export const builtinRules: Rule[] = [
           packageName: name,
           evidence: [`scanned files: ${usage.filesScanned}`, `imports found: ${usage.importCount}`],
           recommendation: `Verify config/runtime usage, then remove ${name} if it is not needed.`,
-          fix: {
-            type: 'remove',
-            title: `Remove unused ${name}`,
-            commands: [`npm uninstall ${name}`],
-            safe: false,
-            requiresInstall: true
-          },
           confidence: name.startsWith('@types/') ? 0.55 : 0.72
         }));
     }

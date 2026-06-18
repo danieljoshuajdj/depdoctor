@@ -19,7 +19,13 @@ export function explainPackage(result: AnalysisResult, packageName: string): Exp
   const findings = result.findings.filter((finding) => finding.packageName === packageName);
   const health = result.packageIntelligence.find((item) => item.name === packageName);
   const installImpactBytes = nodes.reduce((sum, node) => sum + (node?.sizeBytes ?? 0), 0);
-  const direct = chains.some((chain) => chain.length <= 2);
+  const directDeclared = Boolean(
+    result.context.rootProject.dependencies[packageName] ||
+      result.context.rootProject.devDependencies[packageName] ||
+      result.context.rootProject.optionalDependencies[packageName] ||
+      result.context.rootProject.peerDependencies[packageName]
+  );
+  const direct = directDeclared || chains.some((chain) => chain.length <= 2);
   const highRisk = findings.some((finding) => finding.severity === 'high' || finding.severity === 'critical');
 
   return {

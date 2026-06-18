@@ -25,8 +25,7 @@ cli
   .option('--output <file>', 'Write report to file')
   .option('--online-metadata', 'Fetch npm registry metadata with pacote')
   .option('--audit', 'Run npm audit and map vulnerabilities into findings')
-  .option('--no-unused', 'Skip static unused dependency detection')
-  .option('--no-offline', 'Allow network-backed metadata')
+  .option('--skip-unused', 'Skip static unused dependency detection')
   .option('--verbose', 'Show more findings')
   .action(async (options) => {
     await withErrors(async () => {
@@ -48,8 +47,7 @@ cli
   .option('--ai', 'Use configured AI provider to summarize deterministic findings')
   .option('--online-metadata', 'Fetch npm registry metadata with pacote')
   .option('--audit', 'Run npm audit and map vulnerabilities into findings')
-  .option('--no-unused', 'Skip static unused dependency detection')
-  .option('--no-offline', 'Allow network-backed metadata')
+  .option('--skip-unused', 'Skip static unused dependency detection')
   .option('--verbose', 'Show more findings')
   .action(async (options) => {
     await withErrors(async () => {
@@ -73,8 +71,7 @@ cli
   .option('--ai', 'Use configured AI provider to summarize deterministic findings')
   .option('--online-metadata', 'Fetch npm registry metadata with pacote')
   .option('--audit', 'Run npm audit and map vulnerabilities into findings')
-  .option('--no-unused', 'Skip static unused dependency detection')
-  .option('--no-offline', 'Allow network-backed metadata')
+  .option('--skip-unused', 'Skip static unused dependency detection')
   .option('--verbose', 'Show more findings')
   .action(async (options) => {
     await withErrors(async () => {
@@ -126,7 +123,7 @@ cli
   .option('--install', 'Run package manager install after fixes')
   .action(async (options) => {
     await withErrors(async () => {
-      const result = await runAnalysis('Planning fixes', options);
+      const result = await runAnalysis('Planning fixes', { ...options, noSpinner: true });
       const plan = await runFixes(result, {
         root: options.root,
         dryRun: !options.run || options.dryRun,
@@ -135,7 +132,7 @@ cli
         install: Boolean(options.install)
       });
       console.log(chalk.bold('\nFix Plan'));
-      for (const command of plan.commands) console.log(`${chalk.cyan('→')} ${command}`);
+      for (const command of plan.commands) console.log(`${chalk.cyan('->')} ${command}`);
       if (plan.commands.length === 0) console.log(chalk.green('No automatic fixes are needed.'));
       if (plan.executed.length > 0) console.log(chalk.green(`Executed ${plan.executed.length} command(s).`));
       if (plan.skipped.length > 0) console.log(chalk.dim('Dry run: no files were changed.'));
@@ -147,7 +144,7 @@ cli
   .option('--root <path>', 'Project root', { default: cwd() })
   .action(async (options) => {
     await withErrors(async () => {
-      const result = await runAnalysis('Preparing roast', options);
+      const result = await runAnalysis('Preparing roast', { ...options, noSpinner: true });
       console.log(renderRoast(result));
     });
   });
@@ -165,13 +162,13 @@ cli
       } else {
         console.log(chalk.bold(`\nInstall Risk: ${prediction.risk.toUpperCase()}`));
         for (const warning of prediction.warnings) console.log(`${chalk.yellow('!')} ${warning}`);
-        for (const conflict of prediction.likelyConflicts) console.log(`${chalk.red('×')} Likely conflict: ${conflict}`);
+        for (const conflict of prediction.likelyConflicts) console.log(`${chalk.red('x')} Likely conflict: ${conflict}`);
       }
     });
   });
 
 cli.help();
-cli.version('0.2.0');
+cli.version('0.2.1');
 cli.parse();
 
 async function runAnalysis(message: string, options: any) {
@@ -182,11 +179,11 @@ async function runAnalysis(message: string, options: any) {
       offline: options.offline ?? !options.onlineMetadata,
       onlineMetadata: Boolean(options.onlineMetadata),
       audit: Boolean(options.audit),
-      unused: options.unused !== false,
+      unused: options.skipUnused !== true,
       ci: Boolean(options.ci),
       verbose: Boolean(options.verbose)
     });
-    spinner?.succeed(message);
+    spinner?.stop();
     return result;
   } catch (error) {
     spinner?.fail(message);
@@ -222,7 +219,7 @@ function enforceCi(result: Awaited<ReturnType<typeof analyzeProject>>, ci?: bool
 }
 
 function shouldSpin(options: any): boolean {
-  return !options.json && !options.ci && !options.markdown && !options.html;
+  return !options.noSpinner && !options.json && !options.ci && !options.markdown && !options.html;
 }
 
 async function withErrors(task: () => Promise<void>): Promise<void> {

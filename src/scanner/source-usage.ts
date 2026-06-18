@@ -70,24 +70,24 @@ function packageNameFromSpecifier(specifier: string): string {
 }
 
 function addImplicitToolingUsage(context: ProjectContext, used: Set<string>): void {
-  const scripts = Object.values(context.rootProject.dependencies)
-    .concat(Object.values(context.rootProject.devDependencies))
-    .join(' ');
-  const packageScripts = Object.values({
-    ...context.rootProject.dependencies,
-    ...context.rootProject.devDependencies
-  });
-  void scripts;
-  for (const name of packageScripts) void name;
-
   const directNames = Object.keys({
     ...context.rootProject.dependencies,
     ...context.rootProject.devDependencies
   });
   const knownConfigDriven = [
+    'react',
+    'react-dom',
+    'next',
+    'nuxt',
+    'astro',
+    'svelte',
+    'tailwindcss',
+    'postcss',
+    'autoprefixer',
     'typescript',
     'eslint',
     'prettier',
+    'eslint-config-prettier',
     'vitest',
     'jest',
     'tsup',
@@ -96,9 +96,22 @@ function addImplicitToolingUsage(context: ProjectContext, used: Set<string>): vo
     'vite',
     'rollup',
     'unbuild',
+    '@cloudflare/vite-plugin',
+    '@tanstack/router-plugin',
     '@types/node'
   ];
   for (const name of directNames) {
-    if (knownConfigDriven.includes(name) || name.startsWith('@types/')) used.add(name);
+    if (
+      knownConfigDriven.includes(name) ||
+      name.startsWith('@types/') ||
+      name.startsWith('eslint-config-') ||
+      name.startsWith('eslint-plugin-') ||
+      name.startsWith('@vitejs/plugin-') ||
+      name.includes('plugin') ||
+      name.includes('preset') ||
+      name.includes('loader')
+    ) {
+      used.add(name);
+    }
   }
 }
