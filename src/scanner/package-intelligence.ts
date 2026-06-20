@@ -37,7 +37,7 @@ export async function collectPackageIntelligence(
 
   await mapLimit(names, 8, async (name) => {
     try {
-      const packument = (await pacote.packument(name, { fullMetadata: false })) as Packument;
+      const packument = (await pacote.packument(name, { fullMetadata: true })) as Packument;
       const latest = packument['dist-tags']?.latest;
       const latestMeta = latest ? packument.versions?.[latest] : undefined;
       const publishedAt = latest ? packument.time?.[latest] : undefined;
@@ -77,5 +77,8 @@ async function fetchWeeklyDownloads(name: string): Promise<number | undefined> {
 function ageDays(isoDate: string): number | undefined {
   const parsed = new Date(isoDate).getTime();
   if (Number.isNaN(parsed) || !Number.isFinite(parsed)) return undefined;
-  return Math.max(0, Math.floor((Date.now() - parsed) / 86_400_000));
+  if (parsed > Date.now()) return undefined;
+  const days = Math.floor((Date.now() - parsed) / 86_400_000);
+  if (days < 0 || days > 36500) return undefined;
+  return days;
 }

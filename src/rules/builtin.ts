@@ -2,6 +2,7 @@ import semver from 'semver';
 const { gt, satisfies, validRange } = semver;
 import type { DependencyNode, Finding, Rule, Severity } from '../types/index.js';
 import { formatBytes } from '../utils/bytes.js';
+import { satisfiesPeerRequirement } from '../utils/semver.js';
 
 export const builtinRules: Rule[] = [
   {
@@ -148,27 +149,12 @@ export const builtinRules: Rule[] = [
       for (const node of graph.nodes.values()) {
         for (const [peerName, range] of Object.entries(node.peerDependencies)) {
           const versions = installed.get(peerName) ?? [];
-          const cleanRange = range.replace(/^workspace:/, '');
+          const cleanRange = range.replace(/(workspace|link|file):/g, '').trim();
           const hasValidRange = cleanRange === '*' || cleanRange === 'latest' || Boolean(semver.validRange(cleanRange));
           
           let satisfied = false;
-          if (cleanRange === '*' || cleanRange === 'latest') {
-            satisfied = true;
-          } else if (hasValidRange) {
-            satisfied = versions.some((version) => {
-              try {
-                const cleanV = version.replace(/^workspace:/, '');
-                if (cleanV === '*' || cleanV === 'latest') return true;
-                // Direct check
-                if (semver.satisfies(cleanV, cleanRange, { includePrerelease: true })) return true;
-                // Coerce check
-                const coerced = semver.coerce(cleanV);
-                if (coerced && semver.satisfies(coerced.version, cleanRange, { includePrerelease: true })) return true;
-                return false;
-              } catch {
-                return false;
-              }
-            });
+          if (versions.length > 0) {
+            satisfied = versions.some((version) => satisfiesPeerRequirement(version, range));
           }
 
           if (versions.length > 0 && satisfied) continue;
@@ -495,8 +481,10 @@ export const builtinRules: Rule[] = [
         const reactDomVersions = reactDomNodes.map(id => graph.nodes.get(id)?.version).filter((v): v is string => Boolean(v));
         for (const rVer of reactVersions) {
           const rMajor = rVer.split('.')[0];
+          if (rMajor === undefined) continue;
           for (const rdVer of reactDomVersions) {
             const rdMajor = rdVer.split('.')[0];
+            if (rdMajor === undefined) continue;
             if (rMajor !== rdMajor) {
               findings.push({
                 id: `compatibility:framework-mismatch:react`,

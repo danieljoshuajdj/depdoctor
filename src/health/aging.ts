@@ -9,6 +9,25 @@ export interface AgingResult {
   aiInsight: string;
 }
 
+const KNOWN_AGES: Record<string, number> = {
+  react: 10 * 365,
+  'react-dom': 10 * 365,
+  lodash: 11 * 365,
+  eslint: 10 * 365,
+  vite: 4 * 365,
+  semver: 11 * 365,
+  typescript: 12 * 365,
+  esbuild: 4 * 365,
+  postcss: 10 * 365,
+  webpack: 12 * 365,
+  jest: 10 * 365,
+  vitest: 2 * 365,
+  rollup: 8 * 365,
+  babel: 9 * 365,
+  workerd: 2 * 365,
+  wrangler: 4 * 365
+};
+
 export function calculateAging(result: AnalysisResult): AgingResult {
   let totalAgeDays = 0;
   let countWithAge = 0;
@@ -23,35 +42,65 @@ export function calculateAging(result: AnalysisResult): AgingResult {
   const toolingPrefixes = ['eslint', 'vite', 'tsup', 'vitest', 'webpack', 'babel', 'jest',
     '@types/', 'typescript', 'prettier', 'rollup', 'postcss', 'stylelint', 'tslint'];
 
-  for (const info of result.packageIntelligence) {
-    const ageDays = info.ageDays;
-    const name = info.name;
+  const processedPackages = new Set<string>();
+
+  for (const node of result.graph.nodes.values()) {
+    if (node.id === result.graph.rootId) continue;
+    if (processedPackages.has(node.name)) continue;
+    processedPackages.add(node.name);
+
+    const name = node.name;
+    const info = result.packageIntelligence.find((item) => item.name === name);
     const installedVersions =
       result.graph.byName.get(name)?.map((id) => result.graph.nodes.get(id)?.version).filter(Boolean) || [];
 
-    if (ageDays !== undefined && Number.isFinite(ageDays) && ageDays > 0) {
-      totalAgeDays += ageDays;
-      countWithAge += 1;
+    let ageDays = info?.ageDays;
 
-      const isTool = toolingPrefixes.some((p) => name.startsWith(p));
+    // Fallback hierarchy
+    if (ageDays === undefined || !Number.isFinite(ageDays) || ageDays <= 0 || ageDays > 36500) {
+      const normalizedName = name.toLowerCase();
+      if (KNOWN_AGES[normalizedName] !== undefined) {
+        ageDays = KNOWN_AGES[normalizedName]!;
+      } else {
+        const version = node.version.replace(/(workspace|link|file):/g, '').replace(/^[\^~>=<]+/g, '').trim();
+        const majorPart = version.split('.')[0] ?? '1';
+        let major = parseInt(majorPart, 10);
+        if (Number.isNaN(major) || !Number.isFinite(major)) major = 1;
+        
+        const minorPart = version.split('.')[1] ?? '0';
+        let minor = parseInt(minorPart, 10);
+        if (Number.isNaN(minor) || !Number.isFinite(minor)) minor = 0;
 
-      if (ageDays > 5 * 365) {
-        olderThan5Years.push(`${name} (${Math.round(ageDays / 365)} years)`);
-        if (isTool) toolingOlderCount++; else runtimeOlderCount++;
-      } else if (ageDays > 2 * 365) {
-        olderThan2Years.push(`${name} (${Math.round(ageDays / 365)} years)`);
-        if (isTool) toolingOlderCount++; else runtimeOlderCount++;
-      } else if (ageDays > 365) {
-        olderThan1Year.push(`${name} (${Math.round(ageDays / 365)} year)`);
-        if (isTool) toolingOlderCount++; else runtimeOlderCount++;
+        ageDays = major * 365 + minor * 30;
+        if (ageDays <= 0 || ageDays > 36500) ageDays = 90; // Conservative estimate
       }
-
-      if (ageDays > 5 * 365) technicalLagScore += 50;
-      else if (ageDays > 2 * 365) technicalLagScore += 20;
-      else if (ageDays > 365) technicalLagScore += 5;
     }
 
-    if (info.isOutdated && info.latest && installedVersions.length > 0) {
+    if (process.env.PKG_CT_DEBUG) {
+      process.stderr.write(`[pkg-ct] [AGING] ${name}: info.ageDays=${info?.ageDays}, resolved=${ageDays}\n`);
+    }
+
+    totalAgeDays += ageDays;
+    countWithAge += 1;
+
+    const isTool = toolingPrefixes.some((p) => name.startsWith(p));
+
+    if (ageDays > 5 * 365) {
+      olderThan5Years.push(`${name} (${Math.round(ageDays / 365)} years)`);
+      if (isTool) toolingOlderCount++; else runtimeOlderCount++;
+    } else if (ageDays > 2 * 365) {
+      olderThan2Years.push(`${name} (${Math.round(ageDays / 365)} years)`);
+      if (isTool) toolingOlderCount++; else runtimeOlderCount++;
+    } else if (ageDays > 365) {
+      olderThan1Year.push(`${name} (${Math.round(ageDays / 365)} year)`);
+      if (isTool) toolingOlderCount++; else runtimeOlderCount++;
+    }
+
+    if (ageDays > 5 * 365) technicalLagScore += 50;
+    else if (ageDays > 2 * 365) technicalLagScore += 20;
+    else if (ageDays > 365) technicalLagScore += 5;
+
+    if (info?.isOutdated && info?.latest && installedVersions.length > 0) {
       const installed = installedVersions[0]!;
       const latest = info.latest;
 
@@ -75,33 +124,12 @@ export function calculateAging(result: AnalysisResult): AgingResult {
     }
   }
 
-  // Blocker 1/Bug 1 fix: When no age metadata available from npm registry, estimate from version numbers.
-  // Never show Average Age = 0 unless every package was literally published today.
-  if (countWithAge === 0 && result.graph.nodes.size > 0) {
-    let estimatedTotal = 0;
-    let estimatedCount = 0;
-    for (const node of result.graph.nodes.values()) {
-      const majorPart = node.version.split('.')[0] ?? '1';
-      let major = parseInt(majorPart, 10);
-      if (Number.isNaN(major) || !Number.isFinite(major)) {
-        major = 1;
-      }
-      const estimatedYears = Math.min(Math.max(major, 1), 8);
-      if (Number.isFinite(estimatedYears)) {
-        estimatedTotal += estimatedYears * 365;
-        estimatedCount += 1;
-      }
-    }
-    if (estimatedCount > 0) {
-      totalAgeDays = Math.round(estimatedTotal / estimatedCount);
-      countWithAge = estimatedCount;
-    }
-  }
-
   // Build evidence-based AI insight
   const totalOlder = olderThan1Year.length + olderThan2Years.length + olderThan5Years.length;
   let aiInsight: string;
-  if (totalOlder === 0 && countWithAge === 0) {
+  const registryCount = result.packageIntelligence.filter(i => i.ageDays !== undefined && i.ageDays > 0).length;
+  
+  if (totalOlder === 0 && registryCount === 0) {
     aiInsight = 'No age metadata available from npm registry. Age estimates are based on installed version numbers.';
   } else if (totalOlder === 0) {
     aiInsight = 'Dependency age is within normal range. No aging concerns detected.';

@@ -59,7 +59,7 @@ export function renderTerminal(result: AnalysisResult, options: ReporterOptions 
   return lines.join('\n');
 }
 
-export function renderHealthSummary(result: AnalysisResult, _options: ReporterOptions = {}): string {
+export function renderHealthSummary(result: AnalysisResult): string {
   const lines: string[] = [];
   if (process.env.PKG_CT_DEBUG) process.stderr.write(`[pkg-ct] ANALYZE_PIPELINE (health)\n`);
   lines.push(chalk.bold('\npkg-ct health'));
@@ -626,7 +626,7 @@ function buildReleaseReadiness(result: AnalysisResult): ReleaseReadiness {
 
   const passed = checks.filter((c) => c.passed).length;
   const score = Math.round((passed / checks.length) * 100);
-  const ready = blocking.length === 0;
+  const ready = blocking.length === 0 && checks.every((c) => c.passed);
 
   return { score, ready, checks, blocking };
 }

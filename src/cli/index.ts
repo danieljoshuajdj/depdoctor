@@ -18,6 +18,7 @@ import { generateSecurityReport } from '../scanner/security.js';
 import { detectMissingDependencies } from '../scanner/missing-deps.js';
 import { adviseUpgrade } from '../risk/upgrade-advisor.js';
 import { loadAiRules, renderAiRulesBanner } from '../config/ai-rules.js';
+import { satisfiesPeerRequirement } from '../utils/semver.js';
 import type { AnalysisResult, Finding, ReporterOptions } from '../types/index.js';
 
 const cli = cac('pkg-ct');
@@ -111,7 +112,7 @@ cli
       if (options.json) {
         console.log(JSON.stringify(result.score, null, 2));
       } else {
-        console.log(renderHealthSummary(result, reporterOptions(options)));
+        console.log(renderHealthSummary(result));
       }
       enforceCi(result, options.ci);
     });
@@ -203,9 +204,14 @@ cli
               for (const [peer, range] of Object.entries(peerNode.peerDependencies).slice(0, 3)) {
                 const installedNode = result.graph.byName.get(peer)?.[0];
                 const installedVersion = installedNode ? result.graph.nodes.get(installedNode)?.version : undefined;
-                console.log(`    Reason:    Peer dependency mismatch`);
-                console.log(`    Peer:      ${peer}@${range}`);
-                if (installedVersion) {
+                if (!installedVersion) {
+                  console.log(`    Reason:    Peer dependency missing`);
+                  console.log(`    Peer:      ${peer}@${range}`);
+                  console.log(`    Current:   none`);
+                  console.log(`    Expected:  ${range}`);
+                } else if (!satisfiesPeerRequirement(installedVersion, range)) {
+                  console.log(`    Reason:    Peer dependency mismatch`);
+                  console.log(`    Peer:      ${peer}@${range}`);
                   console.log(`    Current:   ${peer}@${installedVersion}`);
                   console.log(`    Expected:  ${range}`);
                 }

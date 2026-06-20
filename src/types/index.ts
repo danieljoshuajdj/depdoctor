@@ -71,6 +71,7 @@ export type DependencyRole =
   | 'LINTER'
   | 'TRANSPILER'
   | 'BUNDLER'
+  | 'PRODUCTION_RUNTIME'
   | 'UNKNOWN';
 
 export interface PackageUsageEvidence {

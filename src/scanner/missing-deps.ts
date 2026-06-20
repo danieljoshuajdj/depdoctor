@@ -47,6 +47,12 @@ export async function detectMissingDependencies(context: ProjectContext): Promis
     ...Object.keys(context.rootProject.optionalDependencies)
   ]);
 
+  if (context.isMonorepo && context.workspaces) {
+    for (const ws of context.workspaces) {
+      if (ws.name) declared.add(ws.name);
+    }
+  }
+
   // Node built-ins we should ignore (non-exhaustive, covers the common ones)
   const builtins = new Set([
     'node:path', 'node:fs', 'node:os', 'node:url', 'node:util', 'node:events',
@@ -130,11 +136,30 @@ export async function detectMissingDependencies(context: ProjectContext): Promis
           if (configAliases.has(scopePkg) || configAliases.has(parts[0] ?? '')) continue;
         }
 
-        // Skip if firstSegment points to a folder or file existing locally in root, src, or app
-        const localDirs = ['', 'src', 'app'];
+        // Skip if firstSegment points to a folder or file existing locally
+        const fileDir = join(context.root, relative(context.root, file), '..');
+        const checkDirs = [
+          context.root,
+          join(context.root, 'src'),
+          join(context.root, 'app'),
+          fileDir,
+          join(fileDir, 'src'),
+          join(fileDir, 'app')
+        ];
+        
+        if (context.isMonorepo && context.workspaces) {
+          for (const ws of context.workspaces) {
+            if (file.startsWith(ws.path)) {
+              checkDirs.push(ws.path);
+              checkDirs.push(join(ws.path, 'src'));
+              checkDirs.push(join(ws.path, 'app'));
+            }
+          }
+        }
+
         let isLocal = false;
-        for (const dir of localDirs) {
-          const checkPath = join(context.root, dir, firstSegment);
+        for (const dir of checkDirs) {
+          const checkPath = join(dir, firstSegment);
           if (existsSync(checkPath)) {
             isLocal = true;
             break;

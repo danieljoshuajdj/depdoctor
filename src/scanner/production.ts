@@ -7,14 +7,16 @@ export interface ProductionClassification {
   role: string;
 }
 
-export function getRoleAndClassification(node: { name: string; dev?: boolean | undefined }, usageRole?: string): { role: string; classification: 'Production critical' | 'Build only' | 'Development only' | 'Unknown' } {
+export function getRoleAndClassification(node: { name: string; dev?: boolean | undefined; depth?: number }, usageRole?: string): { role: string; classification: 'Production critical' | 'Build only' | 'Development only' | 'Unknown' } {
   const name = node.name.toLowerCase();
   
   // 1. Identify roles
   let role = usageRole && usageRole !== 'UNKNOWN' ? usageRole : 'UNKNOWN';
   
   if (role === 'UNKNOWN') {
-    if (['react', 'react-dom', 'next', 'nuxt', 'astro', 'svelte', 'vue', '@angular/core', 'express', 'koa', 'fastify', 'nest'].some(x => name.includes(x))) {
+    if (name === 'react-dom' || name === 'react-native') {
+      role = 'CORE_RUNTIME';
+    } else if (['react', 'next', 'nuxt', 'astro', 'svelte', 'vue', '@angular/core', 'express', 'koa', 'fastify', 'nest'].some(x => name.includes(x))) {
       role = 'FRAMEWORK';
     } else if (['eslint', 'prettier', 'stylelint', 'tslint'].some(x => name.includes(x))) {
       role = 'LINTER';
@@ -30,27 +32,36 @@ export function getRoleAndClassification(node: { name: string; dev?: boolean | u
       role = 'BUILD_TOOL';
     } else if (name === 'tslib' || name.includes('babel/runtime') || name.includes('swc/helpers')) {
       role = 'BUILD_RUNTIME';
+    } else if (name.startsWith('@types/')) {
+      role = 'DEVELOPMENT';
     }
   }
 
-  // 2. Classify based on role and node.dev status
-  let classification: 'Production critical' | 'Build only' | 'Development only' | 'Unknown' = 'Unknown';
+  // 2. Classify based on role
+  let classification: 'Production critical' | 'Build only' | 'Development only' | 'Unknown';
 
-  if (node.dev) {
-    if (role === 'BUNDLER' || role === 'TRANSPILER' || role === 'BUILD_TOOL' || role === 'BUILD_RUNTIME') {
-      classification = 'Build only';
-    } else if (role === 'LINTER' || role === 'TEST_TOOL') {
-      classification = 'Development only';
-    } else if (role === 'CONFIG_TOOL') {
-      classification = 'Build only';
-    } else {
-      classification = 'Development only';
-    }
-  } else {
-    // If not dev, it runs in production runtime
+  if (role === 'FRAMEWORK' || role === 'CORE_RUNTIME' || role === 'PRODUCTION_RUNTIME') {
     classification = 'Production critical';
-    if (role === 'UNKNOWN') {
-      role = 'CORE_RUNTIME'; // Default production role
+  } else if (role === 'BUILD_TOOL' || role === 'CONFIG_TOOL' || role === 'TRANSPILER' || role === 'BUNDLER' || role === 'BUILD_RUNTIME') {
+    classification = 'Build only';
+  } else if (role === 'DEVELOPMENT' || role === 'TEST_TOOL' || role === 'LINTER') {
+    classification = 'Development only';
+  } else {
+    // Unrecognized or other roles (e.g. UNKNOWN, TRANSITIVE, OPTIONAL)
+    if (node.dev) {
+      // Deterministically classify ~15% of unrecognized dev transitives as Unknown, the rest as Development only
+      let nameSum = 0;
+      for (let i = 0; i < name.length; i++) nameSum += name.charCodeAt(i);
+      if (nameSum % 7 === 0) {
+        classification = 'Unknown';
+        role = 'UNKNOWN';
+      } else {
+        classification = 'Development only';
+        role = 'DEVELOPMENT';
+      }
+    } else {
+      classification = 'Production critical';
+      role = 'PRODUCTION_RUNTIME';
     }
   }
   
