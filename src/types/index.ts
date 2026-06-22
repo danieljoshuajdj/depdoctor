@@ -37,6 +37,7 @@ export interface WorkspaceProject {
   dependencies: Record<string, string>;
   devDependencies: Record<string, string>;
   peerDependencies: Record<string, string>;
+  peerDependenciesMeta?: Record<string, { optional?: boolean }> | undefined;
   optionalDependencies: Record<string, string>;
 }
 
@@ -147,6 +148,7 @@ export interface DependencyNode {
   license?: string | undefined;
   engines?: Record<string, string> | undefined;
   peerDependencies: Record<string, string>;
+  peerDependenciesMeta?: Record<string, { optional?: boolean }> | undefined;
   dependencies: Record<string, string>;
   dependents: string[];
   sizeBytes: number;

@@ -76,7 +76,8 @@ async function fetchWeeklyDownloads(name: string): Promise<number | undefined> {
 
 function ageDays(isoDate: string): number | undefined {
   const parsed = new Date(isoDate).getTime();
-  if (Number.isNaN(parsed) || !Number.isFinite(parsed)) return undefined;
+  if (!Number.isFinite(parsed)) return undefined;
+  if (parsed < 0) return undefined;
   if (parsed > Date.now()) return undefined;
   const days = Math.floor((Date.now() - parsed) / 86_400_000);
   if (days < 0 || days > 36500) return undefined;

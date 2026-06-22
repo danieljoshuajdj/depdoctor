@@ -1,35 +1,35 @@
 import semver from 'semver';
 
+/**
+ * Determine if installedVersion satisfies the peerRange.
+ * Strips workspace/file/link prefixes and handles semver ranges properly.
+ */
 export function satisfiesPeerRequirement(installedVersion: string | undefined, peerRange: string): boolean {
-  if (!installedVersion) return true; // Missing is treated separately, not a mismatch
+  if (!installedVersion) return false;
   
-  const cleanRange = peerRange.replace(/(workspace|link|file):/g, '').trim();
-  if (
-    cleanRange === '*' ||
-    cleanRange === 'latest' ||
-    cleanRange === '^' ||
-    cleanRange === '~' ||
-    cleanRange === ''
-  ) {
-    return true;
-  }
+  // Remove any workspace/link/file prefix (globally).
+  const cleanRange = peerRange.replace(/(?:workspace:|link:|file:)/g, '').trim();
   
-  const hasValidRange = Boolean(semver.validRange(cleanRange));
-  if (!hasValidRange) return true;
+  // If range is empty or wildcard, treat it as satisfied.
+  if (!cleanRange || cleanRange === '*' || cleanRange === 'latest') return true;
   
-  try {
-    const cleanV = installedVersion.replace(/(workspace|link|file):/g, '').trim();
-    if (cleanV === '*' || cleanV === 'latest' || cleanV === '' || cleanV === '^' || cleanV === '~') return true;
-    
-    // Direct check
-    if (semver.satisfies(cleanV, cleanRange, { includePrerelease: true })) return true;
-    
-    // Coerce check
-    const coerced = semver.coerce(cleanV);
-    if (coerced && semver.satisfies(coerced.version, cleanRange, { includePrerelease: true })) return true;
-    
+  // Clean installed version as well
+  const cleanV = installedVersion.replace(/(?:workspace:|link:|file:)/g, '').trim();
+  if (!cleanV || cleanV === '*' || cleanV === 'latest') return true;
+
+  // Validate range syntax first.
+  if (!semver.validRange(cleanRange)) {
+    // If range is something like a git commit, skip.
     return false;
-  } catch {
-    return true;
   }
+
+  // Direct check
+  if (semver.satisfies(cleanV, cleanRange, { includePrerelease: true })) return true;
+
+  // Coerce installed version (handles things like "19.x").
+  const coerced = semver.coerce(cleanV);
+  if (!coerced) return false;
+  
+  // Use semver.satisfies with prerelease included.
+  return semver.satisfies(coerced.version, cleanRange, { includePrerelease: true });
 }

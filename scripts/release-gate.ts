@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { rmSync } from 'fs';
+import { rmSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 const commands = [
@@ -27,9 +27,12 @@ for (const step of commands) {
 
 // Clean up any newly generated tarball from npm pack to keep the directory clean
 try {
-  // Find and remove any newly generated tarball matching @danijsrr/pkg-ct or similar pkg-ct version.tgz
-  // e.g. danijsrr-pkg-ct-0.4.0.tgz
-  const tarballPath = join(process.cwd(), 'danijsrr-pkg-ct-0.4.0.tgz');
+  const packageJsonPath = join(process.cwd(), 'package.json');
+  const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+  const scopeAndName = pkg.name.startsWith('@') ? pkg.name.slice(1).replace('/', '-') : pkg.name;
+  const tarballName = `${scopeAndName}-${pkg.version}.tgz`;
+  const tarballPath = join(process.cwd(), tarballName);
+  console.log(`Cleaning up generated tarball: ${tarballName}...`);
   rmSync(tarballPath, { force: true });
 } catch {
   // Ignore clean up errors
@@ -43,3 +46,4 @@ if (allPassed) {
   console.log('Release Recommendation: NO');
   process.exit(1);
 }
+

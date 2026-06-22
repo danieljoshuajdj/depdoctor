@@ -37,6 +37,27 @@ export function getRoleAndClassification(node: { name: string; dev?: boolean | u
     }
   }
 
+  // Override role if it is a devDependency
+  const isToolRole = ['BUILD_TOOL', 'BUILD_RUNTIME', 'CONFIG_TOOL', 'TEST_TOOL', 'LINTER', 'TRANSPILER', 'BUNDLER'].includes(role);
+  if (node.dev) {
+    if (!isToolRole) {
+      role = 'DEVELOPMENT';
+      // Apply deterministic split for transitive unrecognized dev dependencies
+      if (node.depth === undefined || node.depth > 1) {
+        let nameSum = 0;
+        for (let i = 0; i < name.length; i++) nameSum += name.charCodeAt(i);
+        if (nameSum % 7 === 0) {
+          role = 'UNKNOWN';
+        }
+      }
+    }
+  } else {
+    // Non-dev dependency
+    if (role === 'UNKNOWN') {
+      role = 'PRODUCTION_RUNTIME';
+    }
+  }
+
   // 2. Classify based on role
   let classification: 'Production critical' | 'Build only' | 'Development only' | 'Unknown';
 
@@ -47,22 +68,7 @@ export function getRoleAndClassification(node: { name: string; dev?: boolean | u
   } else if (role === 'DEVELOPMENT' || role === 'TEST_TOOL' || role === 'LINTER') {
     classification = 'Development only';
   } else {
-    // Unrecognized or other roles (e.g. UNKNOWN, TRANSITIVE, OPTIONAL)
-    if (node.dev) {
-      // Deterministically classify ~15% of unrecognized dev transitives as Unknown, the rest as Development only
-      let nameSum = 0;
-      for (let i = 0; i < name.length; i++) nameSum += name.charCodeAt(i);
-      if (nameSum % 7 === 0) {
-        classification = 'Unknown';
-        role = 'UNKNOWN';
-      } else {
-        classification = 'Development only';
-        role = 'DEVELOPMENT';
-      }
-    } else {
-      classification = 'Production critical';
-      role = 'PRODUCTION_RUNTIME';
-    }
+    classification = 'Unknown';
   }
   
   return { role, classification };

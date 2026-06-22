@@ -9,6 +9,7 @@ type PackageJson = {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
+  peerDependenciesMeta?: Record<string, { optional?: boolean }>;
   optionalDependencies?: Record<string, string>;
 };
 
@@ -46,6 +47,7 @@ async function readProject(packageJsonPath: string, fallbackRoot: string): Promi
     dependencies: json.dependencies ?? {},
     devDependencies: json.devDependencies ?? {},
     peerDependencies: json.peerDependencies ?? {},
+    peerDependenciesMeta: json.peerDependenciesMeta,
     optionalDependencies: json.optionalDependencies ?? {}
   };
 }
