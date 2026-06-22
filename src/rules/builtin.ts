@@ -152,24 +152,35 @@ export const builtinRules: Rule[] = [
           const cleanRange = range.replace(/(workspace|link|file):/g, '').trim();
           const hasValidRange = cleanRange === '*' || cleanRange === 'latest' || Boolean(semver.validRange(cleanRange));
           
+          const isOptional = Boolean(node.peerDependenciesMeta?.[peerName]?.optional);
           let satisfied = false;
           if (versions.length > 0) {
             satisfied = versions.some((version) => satisfiesPeerRequirement(version, range));
           }
 
           if (versions.length > 0 && satisfied) continue;
+          if (versions.length > 0 && !hasValidRange) continue;
+          
+          const isMissing = versions.length === 0;
+          const severity = isMissing ? (isOptional ? 'low' : 'medium') : 'high';
+          const description = isMissing
+            ? (isOptional
+                ? 'The optional peer dependency is not installed.'
+                : 'The required peer dependency is not installed in the realized tree.')
+            : `Installed versions (${versions.join(', ')}) do not satisfy this peer range.`;
+            
           findings.push({
             id: `peer:${node.id}:${peerName}`,
-            title: `${node.name} expects peer ${peerName}@${range}`,
-            description: versions.length
-              ? `Installed versions (${versions.join(', ')}) do not satisfy this peer range.`
-              : 'The required peer dependency is not installed in the realized tree.',
+            title: `${node.name} expects ${isOptional ? 'optional ' : ''}peer ${peerName}@${range}`,
+            description,
             category: 'compatibility',
-            severity: versions.length ? 'high' : 'medium',
+            severity,
             packageName: node.name,
             packageVersion: node.version,
             evidence: [`required: ${peerName}@${range}`, `installed: ${versions.join(', ') || 'none'}`],
-            recommendation: `Install a compatible ${peerName} version or upgrade ${node.name} to a compatible release.`,
+            recommendation: isOptional
+              ? `Review if ${peerName} is needed for your features; if so, install a compatible version.`
+              : `Install a compatible ${peerName} version or upgrade ${node.name} to a compatible release.`,
             confidence: hasValidRange ? 0.9 : 0.65
           });
         }

@@ -16,6 +16,7 @@ type ArboristNode = {
     license?: string;
     engines?: Record<string, string>;
     peerDependencies?: Record<string, string>;
+    peerDependenciesMeta?: Record<string, { optional?: boolean }>;
     dependencies?: Record<string, string>;
     scripts?: Record<string, string>;
     repository?: string | { url?: string };
@@ -72,6 +73,7 @@ async function visitArboristNode(node: ArboristNode, graph: DependencyGraph, dep
     license: node.package?.license,
     engines: node.package?.engines,
     peerDependencies: node.package?.peerDependencies ?? {},
+    peerDependenciesMeta: node.package?.peerDependenciesMeta,
     dependencies: node.package?.dependencies ?? {},
     dependents: [],
     sizeBytes: path ? await directorySize(path, depth > 0 ? 1 : 0) : 0,
@@ -109,6 +111,7 @@ function buildFromPackageJson(context: ProjectContext): DependencyGraph {
     version: '0.0.0',
     depth: 0,
     peerDependencies: context.rootProject.peerDependencies,
+    peerDependenciesMeta: context.rootProject.peerDependenciesMeta,
     dependencies: context.rootProject.dependencies,
     dependents: [],
     sizeBytes: 0,
