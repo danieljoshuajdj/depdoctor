@@ -16,6 +16,8 @@ export function getRoleAndClassification(node: { name: string; dev?: boolean | u
   if (role === 'UNKNOWN') {
     if (name === 'react-dom' || name === 'react-native') {
       role = 'CORE_RUNTIME';
+    } else if (name === 'react-refresh' || name.includes('hmr') || name.includes('hot-reload')) {
+      role = 'HMR_RUNTIME';
     } else if (['react', 'next', 'nuxt', 'astro', 'svelte', 'vue', '@angular/core', 'express', 'koa', 'fastify', 'nest'].some(x => name.includes(x))) {
       role = 'FRAMEWORK';
     } else if (['eslint', 'prettier', 'stylelint', 'tslint'].some(x => name.includes(x))) {
@@ -34,22 +36,36 @@ export function getRoleAndClassification(node: { name: string; dev?: boolean | u
       role = 'BUILD_RUNTIME';
     } else if (name.startsWith('@types/')) {
       role = 'DEVELOPMENT';
+    } else if (name === 'espree' || name.includes('parser') || name === 'acorn' || name.startsWith('@babel/parser')) {
+      role = 'PARSER';
+    } else if (name === 'uri-js') {
+      role = 'URL_LIBRARY';
+    } else if (name === 'ignore' || name === 'picomatch' || name === 'minimatch' || name === 'micromatch') {
+      role = 'FILE_FILTER';
+    } else if (name === 'estraverse') {
+      role = 'AST';
+    } else if (name === 'esutils') {
+      role = 'AST_UTIL';
+    } else if (['ansi-styles', 'kleur', 'chalk', 'picocolors', 'colorette'].includes(name)) {
+      role = 'TERMINAL_UI';
+    } else if (name === 'estraverse' || name === 'esutils' || name === 'eslint-scope' || name === 'eslint-visitor-keys' || name.includes('linter') || name.startsWith('@eslint/')) {
+      role = 'LINTER_SUPPORT';
+    } else if (name === 'cacache' || name.includes('cache')) {
+      role = 'CACHE';
+    } else if (name === 'tslib' || name.includes('babel/runtime') || name.includes('babel/helpers') || name.includes('babel/compat-data')) {
+      role = 'COMPILER_SUPPORT';
     }
   }
 
   // Override role if it is a devDependency
-  const isToolRole = ['BUILD_TOOL', 'BUILD_RUNTIME', 'CONFIG_TOOL', 'TEST_TOOL', 'LINTER', 'TRANSPILER', 'BUNDLER'].includes(role);
+  const isToolRole = [
+    'BUILD_TOOL', 'BUILD_RUNTIME', 'CONFIG_TOOL', 'TEST_TOOL', 'LINTER', 'TRANSPILER', 'BUNDLER',
+    'PARSER', 'AST', 'AST_UTIL', 'URL_LIBRARY', 'FILE_FILTER', 'TERMINAL_UI',
+    'LINTER_SUPPORT', 'CACHE', 'HMR_RUNTIME', 'COMPILER_SUPPORT'
+  ].includes(role);
   if (node.dev) {
     if (!isToolRole) {
       role = 'DEVELOPMENT';
-      // Apply deterministic split for transitive unrecognized dev dependencies
-      if (node.depth === undefined || node.depth > 1) {
-        let nameSum = 0;
-        for (let i = 0; i < name.length; i++) nameSum += name.charCodeAt(i);
-        if (nameSum % 7 === 0) {
-          role = 'UNKNOWN';
-        }
-      }
     }
   } else {
     // Non-dev dependency
@@ -63,10 +79,30 @@ export function getRoleAndClassification(node: { name: string; dev?: boolean | u
 
   if (role === 'FRAMEWORK' || role === 'CORE_RUNTIME' || role === 'PRODUCTION_RUNTIME') {
     classification = 'Production critical';
-  } else if (role === 'BUILD_TOOL' || role === 'CONFIG_TOOL' || role === 'TRANSPILER' || role === 'BUNDLER' || role === 'BUILD_RUNTIME') {
+  } else if (
+    role === 'BUILD_TOOL' ||
+    role === 'CONFIG_TOOL' ||
+    role === 'TRANSPILER' ||
+    role === 'BUNDLER' ||
+    role === 'BUILD_RUNTIME' ||
+    role === 'PARSER' ||
+    role === 'AST' ||
+    role === 'AST_UTIL' ||
+    role === 'FILE_FILTER' ||
+    role === 'CACHE' ||
+    role === 'COMPILER_SUPPORT'
+  ) {
     classification = 'Build only';
-  } else if (role === 'DEVELOPMENT' || role === 'TEST_TOOL' || role === 'LINTER') {
+  } else if (
+    role === 'DEVELOPMENT' ||
+    role === 'TEST_TOOL' ||
+    role === 'LINTER' ||
+    role === 'LINTER_SUPPORT' ||
+    role === 'HMR_RUNTIME'
+  ) {
     classification = 'Development only';
+  } else if (role === 'URL_LIBRARY' || role === 'TERMINAL_UI') {
+    classification = node.dev ? 'Development only' : 'Production critical';
   } else {
     classification = 'Unknown';
   }
